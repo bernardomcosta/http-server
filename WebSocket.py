@@ -24,9 +24,6 @@ class WebSocketHandler(http.server.BaseHTTPRequestHandler):
 
         headers = {"Upgrade" : "websocket",
                     "Connection" : "Upgrade",
-                   # "WebSocket-Origin" : "http://localhost:8000",
-                   # "WebSocket-Location" : "ws://localhost:9876/",
-                   # "WebSocket-Protocol" : "sample",
                     "Sec-WebSocket-Accept" : self._generateWebSocketAccept(requestHeaders[self.WEBSOCKET_KEY])}
 
         return headers
@@ -35,18 +32,21 @@ class WebSocketHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
 
         if self.path == "/ws":
-           
-            headers = self._generateHeaders(self.headers)
-
-            for k, v in headers.items():
-                self.send_header(k, v)
+            try:
+                headers = self._generateHeaders(self.headers)
+            except Exception as ex:
+                self.send_response(400)
+                self.end_headers()
+            else:
+                for k, v in headers.items():
+                    self.send_header(k, v)
             
-            self.send_response(101)
-            self.end_headers()
+                self.send_response(101)
+                self.end_headers()
 
-            message = json.dumps({"status" : "success"})
+                message = json.dumps({"status" : "success"})
 
-            self.wfile.write(bytearray(message, encoding="utf-8")) 
+                self.wfile.write(bytearray(message, encoding="utf-8")) 
        
         else:
             message_parts = [
