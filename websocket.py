@@ -65,16 +65,13 @@ class WebSocketHandler(http.server.BaseHTTPRequestHandler):
             "HEADERS RECEIVED:",
             ]
 
-        for name, value in sorted(self.headers.items()):
-            message_parts.append('%s=%s' % (name, value.rstrip()))
-        
+        message_parts.extend('%s=%s' % (name, value.rstrip()) for name, value in sorted(self.headers.items()))
         message_parts.append('')
         message = "\r\n".join(message_parts)
+        
         self.send_response(200)
         self.end_headers()
-
         self.wfile.write(bytearray(message, encoding="utf-8"))
-
         return
 
     # Override of the GET handler
