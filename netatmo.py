@@ -1,5 +1,8 @@
 # This code is heavly based on the sample provided at https://dev.netatmo.com/resources/technical/samplessdks/codesamples#authcode
 
+#TODO: Check state in response
+#TODO: Encapsulate API handling in classes, e.g. generic devices class
+
 from flask import Flask, render_template, redirect
 from flask import request as r
 import requests
@@ -10,6 +13,44 @@ CLIENT_ID = None
 CLIENT_SECRET = None
 
 app = Flask(__name__)
+
+def print_thermostats(device):
+    return "Thermostat %s @ %s" % (device["station_name"], device["_id"])
+
+def print_stations(device):
+    return "Weather Station @ %s" % (device["_id"])
+
+def get_user_devices(access_token):
+    devices = get_stations_data(access_token)
+
+    if (devices != None):
+        devices += "\r\n"
+    
+    devices += get_thermostats_data(access_token)
+
+    return "Available devices:\r\n" + devices
+
+def get_thermostats_data(access_token, device_id = None):
+    payload = {"access_token" : access_token}
+
+    if (device_id != None):
+        payload["device_id"] = device_id
+
+    response = requests.post("https://api.netatmo.com/api/getthermostatsdata", data=payload)
+    response.raise_for_status()
+    
+    return "\r\n".join([print_thermostats(device) for device in response.json()["body"]["devices"]])
+
+def get_stations_data(access_token, device_id = None):
+    payload = {"access_token" : access_token}
+
+    if (device_id != None):
+        payload["device_id"] = device_id
+
+    response = requests.post("https://api.netatmo.com/api/getstationsdata", data=payload)
+    response.raise_for_status()
+
+    return "\r\n".join([print_thermostats(device) for device in response.json()["body"]["devices"]])
 
 def user_accepted_app():
     code = r.args.get('code')
@@ -24,7 +65,8 @@ def user_accepted_app():
         access_token=response.json()["access_token"]
         refresh_token=response.json()["refresh_token"]
         scope=response.json()["scope"]
-        return "<p>Your access_token is:" + access_token + "</p>"
+
+        return get_user_devices(access_token)
 
     except requests.exceptions.HTTPError as error:
         print(error.response.status_code, error.response.text)
@@ -32,7 +74,7 @@ def user_accepted_app():
 def ask_user_permission():
     payload = {'client_id': CLIENT_ID,
         'redirect_uri': "http://localhost:5000/signin",
-        'scope': 'read_station',
+        'scope': 'read_station read_thermostat',
         'state': uuid.uuid4().hex}
     try:
         response = requests.post("https://api.netatmo.com/oauth2/authorize", params=payload)
